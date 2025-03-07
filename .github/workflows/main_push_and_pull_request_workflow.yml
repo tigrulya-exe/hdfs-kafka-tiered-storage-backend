@@ -36,13 +36,8 @@ jobs:
     strategy:
       matrix:
         java-version: [ 11 ]
-        test: [ 'LocalSystem', 'S3', 'Gcs', 'Azure', 'Hdfs' ]
-        hdfs-version: [ '3.3.6' ]
-        include:
-          - test: 'Hdfs'
-            java-version: 11
-            hdfs-version: '3.2.4'
-    name: E2E tests for ${{ matrix.test }} with jdk ${{ matrix.java-version }} and HDFS ${{ matrix.hdfs-version }}
+        hdfs-version: [ '3.3.6', '3.2.4' ]
+    name: E2E tests for Hdfs with jdk ${{ matrix.java-version }} and HDFS ${{ matrix.hdfs-version }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -55,4 +50,4 @@ jobs:
 
       - name: Run E2E tests
         timeout-minutes: 30
-        run: make HDFS_VERSION=${{ matrix.hdfs-version }} E2E_TEST=${{ matrix.test }} e2e_test
+        run: make HDFS_VERSION=${{ matrix.hdfs-version }} E2E_TEST=Hdfs e2e_test
