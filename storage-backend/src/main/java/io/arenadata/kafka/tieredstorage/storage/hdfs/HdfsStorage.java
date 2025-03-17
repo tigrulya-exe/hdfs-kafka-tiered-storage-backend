@@ -36,8 +36,11 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class HdfsStorage implements StorageBackend {
+    private static final Logger LOG = LoggerFactory.getLogger(HdfsStorage.class);
 
     private int uploadBufferSize;
     private Path absoluteRootPath;
@@ -75,6 +78,7 @@ public class HdfsStorage implements StorageBackend {
     @Override
     public long upload(final InputStream inputStream, final ObjectKey key)
         throws StorageBackendException {
+        LOG.debug("Uploading object for key {}", key);
 
         final Path filePath = new Path(key.value());
         final Path containingDirectory = filePath.getParent();
@@ -84,28 +88,39 @@ public class HdfsStorage implements StorageBackend {
             }
 
             try (FSDataOutputStream fsDataOutputStream = fileSystem.create(filePath, true)) {
-                return IOUtils.copy(inputStream, fsDataOutputStream, uploadBufferSize);
+                final long uploadedBytesCount = IOUtils.copy(inputStream, fsDataOutputStream, uploadBufferSize);
+                LOG.debug("Uploaded {} bytes for key {}", uploadedBytesCount, key);
+                return uploadedBytesCount;
             }
+
         } catch (final IOException e) {
-            throw new StorageBackendException("Failed to upload " + key, e);
+            final String errorMessage = "Failed to upload " + key;
+            LOG.error(errorMessage, e);
+            throw new StorageBackendException(errorMessage, e);
         }
     }
 
     @Override
     public InputStream fetch(final ObjectKey key) throws StorageBackendException {
+        LOG.debug("Fetching object for key {}", key);
+
         try {
             final Path path = new Path(key.value());
             return fileSystem.open(path);
         } catch (final FileNotFoundException e) {
+            LOG.error("File for object {} not found", key, e);
             throw new KeyNotFoundException(this, key);
         } catch (final IOException e) {
-            throw new StorageBackendException("Failed to fetch " + key, e);
+            final String errorMessage = "Failed to fetch " + key;
+            LOG.error(errorMessage, e);
+            throw new StorageBackendException(errorMessage, e);
         }
     }
 
     @Override
     public InputStream fetch(final ObjectKey key, final BytesRange range)
         throws StorageBackendException {
+        LOG.debug("Fetching object for key {} in range {}", key, range);
 
         if (range.isEmpty()) {
             return InputStream.nullInputStream();
@@ -128,14 +143,19 @@ public class HdfsStorage implements StorageBackend {
                 .setInputStream(inputStream)
                 .get();
         } catch (final FileNotFoundException e) {
+            LOG.error("File for object {} not found", key, e);
             throw new KeyNotFoundException(this, key);
         } catch (final IOException e) {
-            throw new StorageBackendException("Failed to fetch " + key + ", with range " + range, e);
+            final String errorMessage = "Failed to fetch " + key + ", with range " + range;
+            LOG.error(errorMessage, e);
+            throw new StorageBackendException(errorMessage, e);
         }
     }
 
     @Override
     public void delete(final ObjectKey key) throws StorageBackendException {
+        LOG.debug("Deleting object for key {}", key);
+
         try {
             Path pathToDelete = fileSystem.makeQualified(new Path(key.value()));
             if (!fileSystem.exists(pathToDelete)) {
@@ -150,7 +170,9 @@ public class HdfsStorage implements StorageBackend {
                 pathToDelete = containingDir;
             } while (isEmptyDir(containingDir) && !containingDir.equals(absoluteRootPath));
         } catch (final IOException e) {
-            throw new StorageBackendException("Error when deleting " + key, e);
+            final String errorMessage = "Failed to delete " + key;
+            LOG.error(errorMessage, e);
+            throw new StorageBackendException(errorMessage, e);
         }
     }
 
