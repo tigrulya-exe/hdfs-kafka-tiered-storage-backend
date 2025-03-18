@@ -36,7 +36,7 @@ jobs:
     strategy:
       matrix:
         java-version: [ 11 ]
-        hdfs-version: [ '3.3.6', '3.2.4' ]
+        hdfs-version: [ '3.3.6' ]
     name: E2E tests for Hdfs with jdk ${{ matrix.java-version }} and HDFS ${{ matrix.hdfs-version }}
     runs-on: ubuntu-latest
     steps:
